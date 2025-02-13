@@ -1,11 +1,7 @@
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -434,6 +430,9 @@ var Orbit = /** @class */ (function () {
         var ecc = eph.get('e');
         var twoPi = Math.PI * 2;
         var step = twoPi / 90;
+        if (ecc > 0.9) {
+            step = twoPi / 360;
+        }
         var pts = [];
         for (var E = 0; E < twoPi; E += step) {
             var v = 2 * Math.atan(sqrt((1 + ecc) / (1 - ecc)) * Math.tan(E / 2));
@@ -535,7 +534,7 @@ var Orbit = /** @class */ (function () {
             return OrbitType.TABLE;
         }
         var e = ephem.get('e');
-        if (e > 0.9 && e < 1.2) {
+        if (e >= 0.999 && e < 1.2) {
             return OrbitType.PARABOLIC;
         }
         if (e > 1.2) {

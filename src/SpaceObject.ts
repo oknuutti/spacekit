@@ -44,13 +44,13 @@ export interface SpaceObjectOptions {
   basePath?: string;
   rotation?: {
     enable: boolean;
-    period: number;
+    period: number;      // Rotational period in days
     speed?: number;
-    lambdaDeg?: number;
-    betaDeg?: number;
+    lambdaDeg?: number;  // North Pole Ecliptic Longitude
+    betaDeg?: number;    // North Pole Ecliptic Latitude
     yorp?: number;
-    phi0?: number;
-    jd0?: number;
+    phi0?: number;       // Initial rotation angle
+    jd0?: number;        // JD epoch of rotational parameters
   };
   shape?: {
     shapeUrl?: string;
