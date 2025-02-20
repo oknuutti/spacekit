@@ -8,7 +8,6 @@ import type { SpaceObjectOptions } from './SpaceObject';
  */
 export declare class RotatingObject extends SpaceObject {
     protected _obj: THREE.Object3D;
-    protected _materials: THREE.Material[];
     private _objectIsRotatable;
     private _axisOfRotation?;
     constructor(id: string, options: SpaceObjectOptions, simulation: Simulation, autoInit?: boolean);

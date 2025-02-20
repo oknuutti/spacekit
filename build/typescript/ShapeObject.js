@@ -72,7 +72,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 exports.__esModule = true;
 exports.ShapeObject = void 0;
 var THREE = __importStar(require("three"));
-var OBJLoader_1 = require("three/examples/jsm/loaders/OBJLoader");
+var OBJLoader_js_1 = require("three/examples/jsm/loaders/OBJLoader.js");
 var RotatingObject_1 = require("./RotatingObject");
 var ShapeObject = /** @class */ (function (_super) {
     __extends(ShapeObject, _super);
@@ -104,7 +104,7 @@ var ShapeObject = /** @class */ (function (_super) {
             console.info(_this._id, item, 'loading progress:', loaded, '/', total);
         };
         _this.loadingPromise = new Promise(function (resolve) {
-            var loader = new OBJLoader_1.OBJLoader(manager);
+            var loader = new OBJLoader_js_1.OBJLoader(manager);
             // TODO(ian): Make shapeurl follow assetpath logic.
             loader.load(options.shape.shapeUrl, function (object) {
                 object.traverse(function (child) {
@@ -119,7 +119,11 @@ var ShapeObject = /** @class */ (function (_super) {
                         child.geometry.computeVertexNormals();
                         child.geometry.computeBoundingBox();
                        */
+                        _this._geometries.push(child.geometry);
                         _this._materials.push(material);
+                        if (material.map) {
+                            _this._textures.push(material.map);
+                        }
                     }
                 });
                 _this.shapeObj = object;

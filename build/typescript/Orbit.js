@@ -40,10 +40,12 @@ var OrbitType;
 var sin = Math.sin, cos = Math.cos, sqrt = Math.sqrt;
 var DEFAULT_LEAD_TRAIL_YEARS = 10;
 var DEFAULT_SAMPLE_POINTS = 360;
+var DEFAULT_ECLIPTIC_LINE_SPARSITY = 1;
 var DEFAULT_ORBIT_PATH_SETTINGS = {
     leadDurationYears: DEFAULT_LEAD_TRAIL_YEARS,
     trailDurationYears: DEFAULT_LEAD_TRAIL_YEARS,
-    numberSamplePoints: DEFAULT_SAMPLE_POINTS
+    numberSamplePoints: DEFAULT_SAMPLE_POINTS,
+    eclipticLineSparsity: DEFAULT_ECLIPTIC_LINE_SPARSITY
 };
 /**
  * Special cube root function that assumes input is always positive.
@@ -429,10 +431,7 @@ var Orbit = /** @class */ (function () {
         var a = eph.get('a');
         var ecc = eph.get('e');
         var twoPi = Math.PI * 2;
-        var step = twoPi / 90;
-        if (ecc > 0.9) {
-            step = twoPi / 360;
-        }
+        var step = twoPi / this.options.orbitPathSettings.numberSamplePoints;
         var pts = [];
         for (var E = 0; E < twoPi; E += step) {
             var v = 2 * Math.atan(sqrt((1 + ecc) / (1 - ecc)) * Math.tan(E / 2));
@@ -452,6 +451,11 @@ var Orbit = /** @class */ (function () {
      * @return {THREE.Line} Line object
      */
     Orbit.prototype.generateAndCacheOrbitShape = function (pointVectors) {
+        if (this.orbitShape) {
+            // clean up before creating new resources
+            this.orbitShape.geometry.dispose();
+            this.orbitShape.material.dispose();
+        }
         this.orbitPoints = pointVectors;
         this.orbitShape = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pointVectors), new THREE.LineBasicMaterial({
             color: new THREE.Color(this.options.color || 0x444444)
@@ -478,9 +482,11 @@ var Orbit = /** @class */ (function () {
         var points = this.orbitPoints || [];
         var filteredPoints = [];
         points.forEach(function (vertex, idx) {
+            var _a, _b;
             // Drop last point because it's a repeat of the first point.
             if (idx === points.length - 1 &&
-                _this.orbitType === OrbitType.ELLIPTICAL) {
+                _this.orbitType === OrbitType.ELLIPTICAL ||
+                (idx % ((_b = (_a = _this.options.orbitPathSettings) === null || _a === void 0 ? void 0 : _a.eclipticLineSparsity) !== null && _b !== void 0 ? _b : 1) != 0)) {
                 return;
             }
             filteredPoints.push(vertex);
@@ -522,6 +528,19 @@ var Orbit = /** @class */ (function () {
      */
     Orbit.prototype.setVisibility = function (val) {
         this.getOrbitShape().visible = val;
+    };
+    /**
+     * Free up GPU resources
+     */
+    Orbit.prototype.removalCleanup = function () {
+        if (this.orbitShape) {
+            this.orbitShape.geometry.dispose();
+            this.orbitShape.material.dispose();
+        }
+        if (this.eclipticDropLines) {
+            this.eclipticDropLines.geometry.dispose();
+            this.eclipticDropLines.material.dispose();
+        }
     };
     /**
      * Get the type of orbit. Returns one of OrbitType.PARABOLIC, HYPERBOLIC,

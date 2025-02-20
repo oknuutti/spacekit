@@ -148,6 +148,9 @@ var SpaceObject = /** @class */ (function () {
         this._isStaticObject = !this._options.ephem && !this._useEphemTable;
         this._simulation = simulation;
         this._context = simulation.getContext();
+        this._materials = [];
+        this._geometries = [];
+        this._textures = [];
         this._label = undefined;
         this._showLabel = false;
         this._lastLabelUpdate = 0;
@@ -218,6 +221,11 @@ var SpaceObject = /** @class */ (function () {
                 }
                 this._renderMethod = 'SPRITE';
             }
+            else {
+                if (this._simulation) {
+                    this._simulation.addObject(this, false /* noUpdate */);
+                }
+            }
         }
         else {
             // Create the orbit no matter what - it's used to get current position
@@ -240,17 +248,20 @@ var SpaceObject = /** @class */ (function () {
                 }
             }
             if (!this._renderMethod) {
-                if (!this._options.ephem) {
-                    throw new Error('Attempting to create a particle system, but ephemeris are not available.');
-                }
                 // Create a particle representing this object on the GPU.
-                this._particleIndex = this._context.objects.particles.addParticle(this._options.ephem, {
-                    particleSize: this._options.particleSize,
-                    color: this.getColor()
-                });
+                this.addParticle();
                 this._renderMethod = 'PARTICLESYSTEM';
             }
         }
+    };
+    SpaceObject.prototype.addParticle = function () {
+        if (!this._options.ephem) {
+            throw new Error('Attempting to create a particle system, but ephemeris are not available.');
+        }
+        this._particleIndex = this._context.objects.particles.addParticle(this._options.ephem, {
+            particleSize: this._options.particleSize,
+            color: this.getColor()
+        });
     };
     /**
      * @private
@@ -312,18 +323,22 @@ var SpaceObject = /** @class */ (function () {
      * @return {THREE.Sprite} A sprite object
      */
     SpaceObject.prototype.createSprite = function () {
+        var _a, _b;
         if (!this._options.textureUrl) {
             throw new Error('Cannot create sprite without a textureUrl');
         }
         var fullTextureUrl = (0, util_1.getFullTextureUrl)(this._options.textureUrl, this._context.options.basePath);
         var texture = new THREE.TextureLoader().load(fullTextureUrl);
-        texture.encoding = THREE.LinearEncoding;
-        var sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+        texture.colorSpace = THREE.SRGBColorSpace;
+        this._textures.push(texture);
+        var material = new THREE.SpriteMaterial({
             map: texture,
             blending: THREE.AdditiveBlending,
             depthWrite: false,
-            color: this._options.theme ? this._options.theme.color : 0xffffff
-        }));
+            color: (_b = (_a = this._options.theme) === null || _a === void 0 ? void 0 : _a.color) !== null && _b !== void 0 ? _b : 0xffffff
+        });
+        this._materials.push(material);
+        var sprite = new THREE.Sprite(material);
         var scale = (0, Scale_1.rescaleArray)(this._scale);
         sprite.scale.set(scale[0], scale[1], scale[2]);
         var position = this.getPosition(this._simulation.getJd());
@@ -340,6 +355,7 @@ var SpaceObject = /** @class */ (function () {
      * @return {Orbit} An orbit object
      */
     SpaceObject.prototype.createOrbit = function () {
+        var _a, _b;
         if (this._orbit) {
             return this._orbit;
         }
@@ -351,10 +367,8 @@ var SpaceObject = /** @class */ (function () {
         }
         return new Orbit_1.Orbit(ephem, {
             orbitPathSettings: this._options.orbitPathSettings,
-            color: this._options.theme ? this._options.theme.orbitColor : undefined,
-            eclipticLineColor: this._options.ecliptic
-                ? this._options.ecliptic.lineColor
-                : undefined
+            color: (_a = this._options.theme) === null || _a === void 0 ? void 0 : _a.orbitColor,
+            eclipticLineColor: (_b = this._options.ecliptic) === null || _b === void 0 ? void 0 : _b.lineColor
         });
     };
     /**
@@ -480,15 +494,12 @@ var SpaceObject = /** @class */ (function () {
         }
         if (this._orbitAround) {
             var parentPos = this._orbitAround.getPosition(jd);
-            if (this._renderMethod === 'PARTICLESYSTEM') {
+            if (this._particleIndex !== undefined) {
                 // TODO(ian): Only do this when the origin changes
                 (_b = this._context.objects.particles) === null || _b === void 0 ? void 0 : _b.setParticleOrigin(this._particleIndex, parentPos);
             }
             if (!this._options.hideOrbit) {
                 (_c = this._orbitPath) === null || _c === void 0 ? void 0 : _c.position.set(parentPos[0], parentPos[1], parentPos[2]);
-            }
-            if (!newpos) {
-                newpos = this.getPosition(jd);
             }
         }
     };
@@ -551,6 +562,13 @@ var SpaceObject = /** @class */ (function () {
         return this._showLabel;
     };
     /**
+     * Gets the label HTML Element.
+     * @return {HTMLElement | undefined} The label element.
+     */
+    SpaceObject.prototype.getLabelElement = function () {
+        return this._label;
+    };
+    /**
      * Toggle the visilibity of the label.
      * @param {boolean} val Whether to show or hide.
      */
@@ -590,14 +608,21 @@ var SpaceObject = /** @class */ (function () {
         return this._initialized;
     };
     SpaceObject.prototype.removalCleanup = function () {
-        var _a;
+        var _a, _b, _c, _d;
         if (this._label) {
             this._simulation.getSimulationElement().removeChild(this._label);
             this._label = undefined;
         }
         if (this._particleIndex !== undefined) {
             (_a = this._context) === null || _a === void 0 ? void 0 : _a.objects.particles.hideParticle(this._particleIndex);
+            if ((_b = this._context) === null || _b === void 0 ? void 0 : _b.objects.particles.allHidden()) {
+                this._simulation.removeObject((_c = this._context) === null || _c === void 0 ? void 0 : _c.objects.particles);
+            }
         }
+        (_d = this._orbit) === null || _d === void 0 ? void 0 : _d.removalCleanup();
+        this._geometries.forEach(function (g) { g.dispose(); });
+        this._materials.forEach(function (m) { m.dispose(); });
+        this._textures.forEach(function (t) { t.dispose(); });
     };
     return SpaceObject;
 }());

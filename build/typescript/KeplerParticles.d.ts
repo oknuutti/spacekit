@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Coordinate3d } from './Coordinates';
 import type { Ephem } from './Ephem';
-import type { Simulation } from './Simulation';
+import { Simulation, SimulationObject } from "./Simulation";
 interface BaseKeplerParticleOptions {
     color?: number;
     textureUrl?: string;
@@ -20,7 +20,7 @@ declare type KeplerParticleOptions = BaseKeplerParticleOptions & {
  * Primarily used by Simulation to render all non-static objects.
  * @see Simulation
  */
-export declare class KeplerParticles {
+export declare class KeplerParticles implements SimulationObject {
     static instanceCount: number;
     private id;
     private options;
@@ -61,6 +61,10 @@ export declare class KeplerParticles {
      */
     hideParticle(offset: number): void;
     /**
+     * Have all particles been hidden?
+     */
+    allHidden(): boolean;
+    /**
      * Changes the size of the particle at the given offset to the given size. Setting the size to 0 hides the particle.
      * @param {Number} size The new size of this particle
      * @param {Number} offset The location of this particle in the attributes * array
@@ -93,5 +97,9 @@ export declare class KeplerParticles {
      * @return {String} Unique id
      */
     getId(): string;
+    /**
+     * Free all GPU resources
+     */
+    removalCleanup(): void;
 }
 export {};

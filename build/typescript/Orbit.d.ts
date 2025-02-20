@@ -16,6 +16,7 @@ interface OrbitOptions {
         leadDurationYears?: number;
         trailDurationYears?: number;
         numberSamplePoints?: number;
+        eclipticLineSparsity?: number;
     };
 }
 /**
@@ -145,6 +146,10 @@ export declare class Orbit {
      * @param {boolean} val Whether to show the orbital ellipse.
      */
     setVisibility(val: boolean): void;
+    /**
+     * Free up GPU resources
+     */
+    removalCleanup(): void;
     /**
      * Get the type of orbit. Returns one of OrbitType.PARABOLIC, HYPERBOLIC,
      * ELLIPTICAL, or UNKNOWN.

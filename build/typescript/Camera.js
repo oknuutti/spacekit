@@ -20,7 +20,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 exports.__esModule = true;
 var THREE = __importStar(require("three"));
-var OrbitControls_1 = require("three/examples/jsm/controls/OrbitControls");
+var OrbitControls_js_1 = require("three/examples/jsm/controls/OrbitControls.js");
 var Scale_1 = require("./Scale");
 /**
  * A wrapper for Three.js camera and controls.
@@ -44,7 +44,7 @@ var Camera = /** @class */ (function () {
         // See https://discourse.threejs.org/t/camera-zoom-to-fit-object/936/6
         // TODO(ian): Access this better
         var renderer = this.context.simulation.getRenderer();
-        var controls = new OrbitControls_1.OrbitControls(this.camera, renderer.domElement);
+        var controls = new OrbitControls_js_1.OrbitControls(this.camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
         controls.enablePan = true;

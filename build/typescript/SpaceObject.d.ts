@@ -90,6 +90,9 @@ export declare class SpaceObject implements SimulationObject {
     protected _options: SpaceObjectOptions;
     protected _simulation: Simulation;
     protected _context: SimulationContext;
+    protected _materials: THREE.Material[];
+    protected _geometries: THREE.BufferGeometry[];
+    protected _textures: THREE.Texture[];
     protected _renderMethod?: 'SPRITE' | 'PARTICLESYSTEM' | 'ROTATING_OBJECT' | 'SPHERE';
     protected _initialized: boolean;
     private _object3js?;
@@ -152,6 +155,7 @@ export declare class SpaceObject implements SimulationObject {
      * Build the THREE.js object for this SpaceObject.
      */
     private renderObject;
+    protected addParticle(): void;
     /**
      * @private
      * Builds the label div and adds it to the visualization
@@ -240,6 +244,11 @@ export declare class SpaceObject implements SimulationObject {
      * @return {boolean} Whether label is visible.
      */
     getLabelVisibility(): boolean;
+    /**
+     * Gets the label HTML Element.
+     * @return {HTMLElement | undefined} The label element.
+     */
+    getLabelElement(): HTMLElement | undefined;
     /**
      * Toggle the visilibity of the label.
      * @param {boolean} val Whether to show or hide.

@@ -46,9 +46,10 @@ var Skybox = /** @class */ (function () {
      * @private
      */
     Skybox.prototype.init = function () {
-        var geometry = new THREE.SphereBufferGeometry(1e10, 32, 32);
+        var geometry = new THREE.SphereGeometry(1e10, 32, 32);
         var fullTextureUrl = (0, util_1.getFullTextureUrl)(this.options.textureUrl, this.context.options.basePath);
         var texture = new THREE.TextureLoader().load(fullTextureUrl);
+        texture.colorSpace = THREE.SRGBColorSpace;
         var material = new THREE.MeshBasicMaterial({
             map: texture,
             side: THREE.BackSide
@@ -85,6 +86,17 @@ var Skybox = /** @class */ (function () {
     };
     Skybox.prototype.update = function () {
         // Skyboxes don't update
+    };
+    /**
+     * Free all GPU resources
+     */
+    Skybox.prototype.removalCleanup = function () {
+        var _a;
+        if (this.mesh) {
+            this.mesh.geometry.dispose();
+            this.mesh.material.dispose();
+            (_a = this.mesh.material.map) === null || _a === void 0 ? void 0 : _a.dispose();
+        }
     };
     return Skybox;
 }());

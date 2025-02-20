@@ -6,6 +6,8 @@ import type {
   SimulationObject,
 } from './Simulation';
 import { getFullTextureUrl } from './util';
+import { Material } from "three"
+import { MeshBasicMaterial } from "three/src/materials/MeshBasicMaterial"
 
 interface SkyboxOptions {
   textureUrl: string;
@@ -50,13 +52,14 @@ export class Skybox implements SimulationObject {
    * @private
    */
   private init() {
-    const geometry = new THREE.SphereBufferGeometry(1e10, 32, 32);
+    const geometry = new THREE.SphereGeometry(1e10, 32, 32);
 
     const fullTextureUrl = getFullTextureUrl(
       this.options.textureUrl,
       this.context.options.basePath,
     );
     const texture = new THREE.TextureLoader().load(fullTextureUrl);
+    texture.colorSpace = THREE.SRGBColorSpace;
 
     const material = new THREE.MeshBasicMaterial({
       map: texture,
@@ -102,6 +105,17 @@ export class Skybox implements SimulationObject {
 
   update() {
     // Skyboxes don't update
+  }
+
+  /**
+   * Free all GPU resources
+   */
+  removalCleanup() {
+    if (this.mesh) {
+      this.mesh.geometry.dispose();
+      (this.mesh.material as MeshBasicMaterial).dispose();
+      (this.mesh.material as MeshBasicMaterial).map?.dispose();
+    }
   }
 }
 

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-import type { PerspectiveCamera } from 'three';
+import { Mesh, Object3D, PerspectiveCamera } from "three"
 
 import { EphemPresets } from './EphemPresets';
 import { Orbit } from './Orbit';
@@ -15,6 +15,7 @@ import type {
   SimulationContext,
   SimulationObject,
 } from './Simulation';
+import { Object3DJSONObject } from "three/src/core/Object3D"
 
 export interface SpaceObjectOptions {
   position?: Coordinate3d;
@@ -45,7 +46,7 @@ export interface SpaceObjectOptions {
   rotation?: {
     enable: boolean;
     period: number;      // Rotational period in days
-    speed?: number;
+    speed?: number;      // Speed of rotation in degrees/rendering tick, do not set if want realistic rotation
     lambdaDeg?: number;  // North Pole Ecliptic Longitude
     betaDeg?: number;    // North Pole Ecliptic Latitude
     yorp?: number;
@@ -134,6 +135,10 @@ export class SpaceObject implements SimulationObject {
 
   protected _context: SimulationContext;
 
+  protected _materials: THREE.Material[];   // needed for cleanup
+  protected _geometries: THREE.BufferGeometry[];  // needed for cleanup
+  protected _textures: THREE.Texture[];    // needed for cleanup
+
   protected _renderMethod?:
     | 'SPRITE'
     | 'PARTICLESYSTEM'
@@ -215,6 +220,10 @@ export class SpaceObject implements SimulationObject {
 
     this._simulation = simulation;
     this._context = simulation.getContext();
+
+    this._materials = [];
+    this._geometries = [];
+    this._textures = [];
 
     this._label = undefined;
     this._showLabel = false;
@@ -299,6 +308,11 @@ export class SpaceObject implements SimulationObject {
         }
         this._renderMethod = 'SPRITE';
       }
+      else {
+        if(this._simulation) {
+          this._simulation.addObject(this, false /* noUpdate */);
+        }
+      }
     } else {
       // Create the orbit no matter what - it's used to get current position
       // for CPU-positioned objects (e.g. child RotatingObjects, SphereObjects,
@@ -323,22 +337,26 @@ export class SpaceObject implements SimulationObject {
       }
 
       if (!this._renderMethod) {
-        if (!this._options.ephem) {
-          throw new Error(
-            'Attempting to create a particle system, but ephemeris are not available.',
-          );
-        }
         // Create a particle representing this object on the GPU.
-        this._particleIndex = this._context.objects.particles.addParticle(
-          this._options.ephem,
-          {
-            particleSize: this._options.particleSize,
-            color: this.getColor(),
-          },
-        );
+        this.addParticle();
         this._renderMethod = 'PARTICLESYSTEM';
       }
     }
+  }
+
+  protected addParticle() {
+    if (!this._options.ephem) {
+      throw new Error(
+        'Attempting to create a particle system, but ephemeris are not available.',
+      );
+    }
+    this._particleIndex = this._context.objects.particles.addParticle(
+      this._options.ephem,
+      {
+        particleSize: this._options.particleSize,
+        color: this.getColor(),
+      },
+    );
   }
 
   /**
@@ -419,15 +437,18 @@ export class SpaceObject implements SimulationObject {
       this._context.options.basePath,
     );
     const texture = new THREE.TextureLoader().load(fullTextureUrl);
-    texture.encoding = THREE.LinearEncoding;
-    const sprite = new THREE.Sprite(
-      new THREE.SpriteMaterial({
-        map: texture,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        color: this._options.theme ? this._options.theme.color : 0xffffff,
-      }),
-    );
+    texture.colorSpace = THREE.SRGBColorSpace;
+    this._textures.push(texture);
+
+    const material = new THREE.SpriteMaterial({
+      map: texture,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      color: this._options.theme?.color ?? 0xffffff,
+    });
+    this._materials.push(material);
+
+    const sprite = new THREE.Sprite(material);
     const scale = rescaleArray(this._scale);
     sprite.scale.set(scale[0], scale[1], scale[2]);
     const position = this.getPosition(this._simulation.getJd());
@@ -459,10 +480,8 @@ export class SpaceObject implements SimulationObject {
     }
     return new Orbit(ephem, {
       orbitPathSettings: this._options.orbitPathSettings,
-      color: this._options.theme ? this._options.theme.orbitColor : undefined,
-      eclipticLineColor: this._options.ecliptic
-        ? this._options.ecliptic.lineColor
-        : undefined,
+      color: this._options.theme?.orbitColor,
+      eclipticLineColor: this._options.ecliptic?.lineColor,
     });
   }
 
@@ -603,7 +622,7 @@ export class SpaceObject implements SimulationObject {
 
     if (this._orbitAround) {
       const parentPos = this._orbitAround.getPosition(jd);
-      if (this._renderMethod === 'PARTICLESYSTEM') {
+      if (this._particleIndex !== undefined) {
         // TODO(ian): Only do this when the origin changes
         this._context.objects.particles?.setParticleOrigin(
           this._particleIndex!,
@@ -613,9 +632,6 @@ export class SpaceObject implements SimulationObject {
 
       if (!this._options.hideOrbit) {
         this._orbitPath?.position.set(parentPos[0], parentPos[1], parentPos[2]);
-      }
-      if (!newpos) {
-        newpos = this.getPosition(jd);
       }
     }
   }
@@ -681,6 +697,14 @@ export class SpaceObject implements SimulationObject {
   }
 
   /**
+   * Gets the label HTML Element.
+   * @return {HTMLElement | undefined} The label element.
+   */
+  getLabelElement(): HTMLElement | undefined {
+    return this._label;
+  }
+
+  /**
    * Toggle the visilibity of the label.
    * @param {boolean} val Whether to show or hide.
    */
@@ -731,7 +755,15 @@ export class SpaceObject implements SimulationObject {
 
     if (this._particleIndex !== undefined) {
       this._context?.objects.particles.hideParticle(this._particleIndex);
+      if (this._context?.objects.particles.allHidden()) {
+        this._simulation.removeObject(this._context?.objects.particles);
+      }
     }
+
+    this._orbit?.removalCleanup();
+    this._geometries.forEach(g => { g.dispose(); });
+    this._materials.forEach(m => { m.dispose(); });
+    this._textures.forEach(t => { t.dispose(); });
   }
 }
 

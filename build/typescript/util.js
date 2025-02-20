@@ -65,7 +65,9 @@ exports.getFullTextureUrl = getFullTextureUrl;
  */
 function getThreeJsTexture(template, basePath) {
     var fullTextureUrl = getFullTextureUrl(template, basePath);
-    return new THREE.TextureLoader().load(fullTextureUrl);
+    var texture = new THREE.TextureLoader().load(fullTextureUrl);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
 }
 exports.getThreeJsTexture = getThreeJsTexture;
 function getDefaultBasePath() {

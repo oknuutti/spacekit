@@ -69,7 +69,7 @@ var RotatingObject = /** @class */ (function (_super) {
      * FIXME(ian): This implementation is still WIP! Rotational parameters are not
      * used right now.
      * @param {boolean} options.rotation.enable Rotate the object
-     * @param {Number} options.rotation.speed Factor that determines speed of rotation
+     * @param {Number} options.rotation.speed Rotates the object even though no time elapsed, degs/rendering tick
      * @param {Number} options.rotation.lambdaDeg Ecliptic longitude lambda, in degrees
      * @param {Number} options.rotation.betaDeg Ecliptic longitude beta, in degrees
      * @param {Number} options.rotation.period Rotational period, in JD
@@ -92,8 +92,6 @@ var RotatingObject = /** @class */ (function (_super) {
         // Offset of axis angle
         // this._axisRotationAngleOffset = 0;
         _this._axisOfRotation = undefined;
-        // Keep track of materials that comprise this object.
-        _this._materials = [];
         if (autoInit) {
             _this.init();
         }
@@ -106,11 +104,17 @@ var RotatingObject = /** @class */ (function (_super) {
         }
         if (this._options.debug) {
             if (this._options.debug.showAxes) {
-                getAxes().forEach(function (axis) { return _this._obj.add(axis); });
+                getAxes().forEach(function (axis) {
+                    _this._materials.push(axis.material);
+                    _this._geometries.push(axis.geometry);
+                    _this._obj.add(axis);
+                });
             }
             if (this._options.debug.showGrid) {
                 var gridHelper = new THREE.GridHelper(3, 3, 0xff0000, 0xffeeee);
                 gridHelper.geometry.rotateX(Math.PI / 2);
+                this._materials.push(gridHelper.material);
+                this._geometries.push(gridHelper.geometry);
                 this._obj.add(gridHelper);
             }
         }
@@ -173,6 +177,9 @@ var RotatingObject = /** @class */ (function (_super) {
             this._options.rotation.enable) {
             if (this._axisOfRotation) {
                 // this._obj.rotateOnAxis(this._axisOfRotation, 0.01);
+            }
+            if (this._options.rotation.speed) {
+                this._obj.rotateZ(Units_1["default"].rad(this._options.rotation.speed));
             }
             else {
                 // Rotate the object around the Z axis

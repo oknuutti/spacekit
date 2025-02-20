@@ -54,7 +54,7 @@ var SphereObject = /** @class */ (function (_super) {
      * @param {String} options.bumpMapUrl Path to bump map (optional)
      * @param {String} options.specularMapUrl Path to specular map (optional)
      * @param {Number} options.color Hex color of the sphere
-     * @param {Number} options.axialTilt Axial tilt in degrees
+     * @param {Number} options.axialTilt Axial tilt in degrees (rotation options will override this)
      * @param {Number} options.radius Radius of sphere. Defaults to 1
      * @param {Object} options.levelsOfDetail List of {threshold: x, segments:
      * y}, where `threshold` is radii distance and `segments` is the number
@@ -77,10 +77,15 @@ var SphereObject = /** @class */ (function (_super) {
         return _this;
     }
     SphereObject.prototype.init = function () {
-        var _a;
+        var _a, _b, _c, _d;
+        if (this._options.ephem !== undefined) {
+            this.addParticle();
+        }
         var map = null;
         if (this._options.textureUrl) {
             map = new THREE.TextureLoader().load(this._options.textureUrl);
+            map.colorSpace = THREE.SRGBColorSpace;
+            this._textures.push(map);
         }
         var detailedObj = new THREE.LOD();
         var levelsOfDetail = this._options.levelsOfDetail || [
@@ -89,20 +94,22 @@ var SphereObject = /** @class */ (function (_super) {
         var radius = this.getScaledRadius();
         for (var i = 0; i < levelsOfDetail.length; i += 1) {
             var level = levelsOfDetail[i];
-            var sphereGeometry = new THREE.SphereGeometry(radius, level.segments, level.segments);
+            var sphereGeometry = new THREE.SphereGeometry(radius, (_a = level.segments) !== null && _a !== void 0 ? _a : 8, (_b = level.segments) !== null && _b !== void 0 ? _b : 8);
+            this._geometries.push(sphereGeometry);
             var material = void 0;
             if (this._simulation.isUsingLightSources()) {
-                console.warn("SphereObject " + this._id + " requires a texture when using a light source.");
+                if (map === null) {
+                    console.warn("SphereObject " + this._id + " requires a texture when using a light source.");
+                }
                 var uniforms = {
-                    sphereTexture: {
-                        value: undefined
+                    sphereTex: {
+                        value: map
                     },
                     lightPos: {
                         value: new THREE.Vector3()
                     }
                 };
                 // TODO(ian): Handle if no map
-                uniforms.sphereTexture.value = map;
                 uniforms.lightPos.value.copy(this._simulation.getLightPosition());
                 material = new THREE.ShaderMaterial({
                     uniforms: uniforms,
@@ -112,15 +119,17 @@ var SphereObject = /** @class */ (function (_super) {
                 });
             }
             else {
-                var color = (_a = this._options.color) !== null && _a !== void 0 ? _a : 0xbbbbbb;
+                var color = (_c = this._options.color) !== null && _c !== void 0 ? _c : 0xbbbbbb;
                 material = new THREE.MeshBasicMaterial({
                     map: map,
                     color: color
                 });
             }
+            this._materials.push(material);
             var mesh = new THREE.Mesh(sphereGeometry, material);
             mesh.receiveShadow = true;
             mesh.castShadow = true;
+            mesh.visible = !!level.segments; // Hide if no segments.
             // Change the coordinate system to have Z-axis pointed up.
             mesh.rotation.x = Math.PI / 2;
             // Show this number of segments at distance >= radii * level.radii.
@@ -134,14 +143,10 @@ var SphereObject = /** @class */ (function (_super) {
                 this._obj.add(atmosphere);
             }
         }
-        if (this._options.axialTilt) {
+        if (this._options.axialTilt && ((_d = this._options.rotation) === null || _d === void 0 ? void 0 : _d.lambdaDeg) === undefined) {
             this._obj.rotation.y += Units_1["default"].rad(this._options.axialTilt);
         }
         this._renderMethod = 'SPHERE';
-        if (this._simulation) {
-            // Add it all to visualization.
-            this._simulation.addObject(this, false /* noUpdate */);
-        }
         return _super.prototype.init.call(this);
     };
     /**
@@ -205,6 +210,8 @@ var SphereObject = /** @class */ (function (_super) {
             transparent: true,
             depthWrite: false
         });
+        this._geometries.push(geometry);
+        this._materials.push(material);
         return new THREE.Mesh(geometry, material);
     };
     /**
@@ -221,8 +228,11 @@ var SphereObject = /** @class */ (function (_super) {
         var innerRadiusSize = (0, Scale_1.rescaleNumber)(Units_1["default"].kmToAu(innerRadiusKm));
         var outerRadiusSize = (0, Scale_1.rescaleNumber)(Units_1["default"].kmToAu(outerRadiusKm));
         var geometry = new THREE.RingGeometry(innerRadiusSize, outerRadiusSize, segments, 5, 0, Math.PI * 2);
+        this._geometries.push(geometry);
         // TODO(ian): Load from base path.
         var map = new THREE.TextureLoader().load(texturePath);
+        map.colorSpace = THREE.SRGBColorSpace;
+        this._textures.push(map);
         var material;
         if (this._simulation.isUsingLightSources()) {
             // TODO(ian): Follow recommendation for defining ShaderMaterials here:
@@ -233,13 +243,13 @@ var SphereObject = /** @class */ (function (_super) {
                 THREE.UniformsLib.lights,
                 // THREE.UniformsLib.shadowmap,
                 {
-                    ringTexture: { value: null },
+                    ringTex: { value: null },
                     innerRadius: { value: innerRadiusSize },
                     outerRadius: { value: outerRadiusSize },
                     lightPos: { value: new THREE.Vector3() }
                 },
             ]);
-            uniforms.ringTexture.value = map;
+            uniforms.ringTex.value = map;
             uniforms.lightPos.value.copy(this._simulation.getLightPosition());
             material = new THREE.ShaderMaterial({
                 uniforms: uniforms,
@@ -260,6 +270,7 @@ var SphereObject = /** @class */ (function (_super) {
                 opacity: 0.8
             });
         }
+        this._materials.push(material);
         var mesh = new THREE.Mesh(geometry, material);
         mesh.receiveShadow = true;
         mesh.castShadow = true;

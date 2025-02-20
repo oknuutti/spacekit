@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 // @ts-ignore
 import julian from 'julian';
-import Stats from 'three/examples/jsm/libs/stats.module';
+import Stats from 'three/examples/jsm/libs/stats.module.js';
 import {
   BloomEffect,
   EffectComposer,
@@ -10,7 +10,7 @@ import {
   // @ts-ignore
 } from 'postprocessing';
 
-import type { Scene, Object3D, Vector3, WebGL1Renderer } from 'three';
+import type { Scene, Object3D, Vector3, WebGLRenderer } from 'three';
 
 import Camera from './Camera';
 import { KeplerParticles } from './KeplerParticles';
@@ -31,6 +31,7 @@ export interface SimulationObject {
   update: (jd: number, force: boolean) => void;
   get3jsObjects(): THREE.Object3D[];
   getId(): string;
+  removalCleanup?: () => void;
 }
 
 interface CameraOptions {
@@ -63,7 +64,7 @@ export interface SimulationContext {
   simulation: Simulation;
   options: SpacekitOptions;
   objects: {
-    renderer: WebGL1Renderer;
+    renderer: WebGLRenderer;
     camera: Camera;
     scene: Scene;
     particles: KeplerParticles;
@@ -149,7 +150,7 @@ export class Simulation {
 
   private scene: Scene;
 
-  private renderer: WebGL1Renderer;
+  private renderer: WebGLRenderer;
 
   private composer?: EffectComposer;
 
@@ -227,7 +228,7 @@ export class Simulation {
 
     // This makes controls.lookAt and other objects treat the positive Z axis
     // as "up" direction.
-    THREE.Object3D.DefaultUp = new THREE.Vector3(0, 0, 1);
+    THREE.Object3D.DEFAULT_UP = new THREE.Vector3(0, 0, 1);
 
     // Scale
     if (this.options.unitsPerAu) {
@@ -339,9 +340,9 @@ export class Simulation {
   /**
    * @private
    */
-  private initRenderer(): THREE.WebGL1Renderer {
+  private initRenderer(): THREE.WebGLRenderer {
     // TODO(ian): Upgrade to webgl 2. See https://discourse.threejs.org/t/webgl2-breaking-custom-shader/16603/4
-    const renderer = new THREE.WebGL1Renderer({
+    const renderer = new THREE.WebGLRenderer({
       antialias: true,
       //logarithmicDepthBuffer: true,
     });
@@ -563,10 +564,18 @@ export class Simulation {
   }
 
   /**
+   * Get an object previously added to the simulation.
+   * @return {Object} The SimulationObject.
+   */
+  getObject(id: string): SimulationObject | undefined {
+    return this.subscribedObjects[id];
+  }
+
+  /**
    * Removes an object from the visualization.
    * @param {Object} obj Object to remove
    */
-  removeObject(obj: SpaceObject) {
+  removeObject(obj: SimulationObject) {
     // TODO(ian): test this and avoid memory leaks...
     obj.get3jsObjects().map((x) => {
       this.scene.remove(x);
@@ -959,9 +968,9 @@ export class Simulation {
 
   /**
    * Get the three.js renderer
-   * @return {THREE.WebGL1Renderer} The THREE.js renderer
+   * @return {THREE.WebGLRenderer} The THREE.js renderer
    */
-  getRenderer(): THREE.WebGL1Renderer {
+  getRenderer(): THREE.WebGLRenderer {
     return this.renderer;
   }
 

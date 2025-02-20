@@ -7,7 +7,8 @@ import { getOrbitShaderVertex, getOrbitShaderFragment } from './shaders';
 import { Orbit, OrbitType } from './Orbit';
 
 import type { Ephem } from './Ephem';
-import type { Simulation, SimulationContext } from './Simulation';
+import { Simulation, SimulationContext, SimulationObject } from "./Simulation"
+import { Box3, Vector3, Sphere } from "three"
 
 interface BaseKeplerParticleOptions {
   color?: number;
@@ -68,7 +69,7 @@ function getA0(ephem: Ephem, jd: number): number {
  * Primarily used by Simulation to render all non-static objects.
  * @see Simulation
  */
-export class KeplerParticles {
+export class KeplerParticles implements SimulationObject {
   static instanceCount: number;
 
   private id: string;
@@ -86,7 +87,7 @@ export class KeplerParticles {
   private elements: Ephem[];
 
   private uniforms: {
-    texture: { value: THREE.Texture };
+    tex: { value: THREE.Texture };
   };
 
   private geometry: THREE.BufferGeometry;
@@ -136,7 +137,7 @@ export class KeplerParticles {
     );
 
     this.uniforms = {
-      texture: { value: defaultMapTexture },
+      tex: { value: defaultMapTexture },
     };
 
     const particleCount =
@@ -177,6 +178,9 @@ export class KeplerParticles {
         this.attributes[attributeName as keyof ShaderAttributes];
       geometry.setAttribute(attributeName, attribute);
     });
+
+    // needs to be set, otherwise Three will hide the particles when the origin is not in the camera view
+    geometry.boundingSphere = new Sphere(new Vector3(0, 0, 0), Infinity);
 
     const shader = new THREE.ShaderMaterial({
       uniforms: this.uniforms,
@@ -263,6 +267,14 @@ export class KeplerParticles {
   }
 
   /**
+   * Have all particles been hidden?
+   */
+  allHidden() {
+    return this.particleCount === 0
+      || this.attributes.size.array.slice(0, this.particleCount).every((size) => size === 0);
+  }
+
+  /**
    * Changes the size of the particle at the given offset to the given size. Setting the size to 0 hides the particle.
    * @param {Number} size The new size of this particle
    * @param {Number} offset The location of this particle in the attributes * array
@@ -312,6 +324,8 @@ export class KeplerParticles {
   update(jd: number) {
     const Ms: number[] = [];
     const a0s: number[] = [];
+    let max_r = 0;
+
     for (let i = 0; i < this.elements.length; i++) {
       const ephem = this.elements[i];
 
@@ -326,6 +340,7 @@ export class KeplerParticles {
 
       Ms.push(M);
       a0s.push(a0);
+      max_r = Math.max(max_r, ephem.get('q') * (1 + ephem.get('e')));
     }
 
     this.attributes.M.set(Ms);
@@ -349,6 +364,15 @@ export class KeplerParticles {
    */
   getId(): string {
     return this.id;
+  }
+
+  /**
+   * Free all GPU resources
+   */
+  removalCleanup() {
+    this.geometry.dispose();
+    this.shaderMaterial.dispose();
+    this.uniforms.tex.value.dispose();
   }
 }
 

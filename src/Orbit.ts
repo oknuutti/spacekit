@@ -25,6 +25,7 @@ interface OrbitOptions {
     leadDurationYears?: number;
     trailDurationYears?: number;
     numberSamplePoints?: number;
+    eclipticLineSparsity?: number;
   };
 }
 
@@ -32,10 +33,12 @@ const { sin, cos, sqrt } = Math;
 
 const DEFAULT_LEAD_TRAIL_YEARS = 10;
 const DEFAULT_SAMPLE_POINTS = 360;
+const DEFAULT_ECLIPTIC_LINE_SPARSITY = 1;
 const DEFAULT_ORBIT_PATH_SETTINGS = {
   leadDurationYears: DEFAULT_LEAD_TRAIL_YEARS,
   trailDurationYears: DEFAULT_LEAD_TRAIL_YEARS,
   numberSamplePoints: DEFAULT_SAMPLE_POINTS,
+  eclipticLineSparsity: DEFAULT_ECLIPTIC_LINE_SPARSITY,
 };
 
 /**
@@ -536,10 +539,8 @@ export class Orbit {
     const ecc = eph.get('e');
 
     const twoPi = Math.PI * 2;
-    let step = twoPi / 90;
-    if (ecc > 0.9) {
-      step = twoPi / 360;
-    }
+    const step = twoPi / this.options.orbitPathSettings!.numberSamplePoints!;
+
     const pts = [];
     for (let E = 0; E < twoPi; E += step) {
       const v = 2 * Math.atan(sqrt((1 + ecc) / (1 - ecc)) * Math.tan(E / 2));
@@ -565,6 +566,13 @@ export class Orbit {
   private generateAndCacheOrbitShape(
     pointVectors: THREE.Vector3[],
   ): THREE.Line {
+
+    if (this.orbitShape) {
+      // clean up before creating new resources
+      this.orbitShape.geometry.dispose();
+      (this.orbitShape.material as LineBasicMaterial).dispose();
+    }
+
     this.orbitPoints = pointVectors;
     this.orbitShape = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints(pointVectors),
@@ -599,7 +607,8 @@ export class Orbit {
       // Drop last point because it's a repeat of the first point.
       if (
         idx === points.length - 1 &&
-        this.orbitType === OrbitType.ELLIPTICAL
+        this.orbitType === OrbitType.ELLIPTICAL ||
+        (idx % (this.options.orbitPathSettings?.eclipticLineSparsity ?? 1) != 0)
       ) {
         return;
       }
@@ -651,6 +660,20 @@ export class Orbit {
    */
   setVisibility(val: boolean) {
     this.getOrbitShape().visible = val;
+  }
+
+  /**
+   * Free up GPU resources
+   */
+  removalCleanup() {
+    if (this.orbitShape) {
+      this.orbitShape.geometry.dispose();
+      (this.orbitShape.material as LineBasicMaterial).dispose();
+    }
+    if (this.eclipticDropLines) {
+      this.eclipticDropLines.geometry.dispose();
+      (this.eclipticDropLines.material as LineBasicMaterial).dispose();
+    }
   }
 
   /**

@@ -71,7 +71,7 @@ exports.Simulation = void 0;
 var THREE = __importStar(require("three"));
 // @ts-ignore
 var julian_1 = __importDefault(require("julian"));
-var stats_module_1 = __importDefault(require("three/examples/jsm/libs/stats.module"));
+var stats_module_js_1 = __importDefault(require("three/examples/jsm/libs/stats.module.js"));
 var postprocessing_1 = require("postprocessing");
 var Camera_1 = __importDefault(require("./Camera"));
 var KeplerParticles_1 = require("./KeplerParticles");
@@ -181,7 +181,7 @@ var Simulation = /** @class */ (function () {
         this.subscribedObjects = {};
         // This makes controls.lookAt and other objects treat the positive Z axis
         // as "up" direction.
-        THREE.Object3D.DefaultUp = new THREE.Vector3(0, 0, 1);
+        THREE.Object3D.DEFAULT_UP = new THREE.Vector3(0, 0, 1);
         // Scale
         if (this.options.unitsPerAu) {
             (0, Scale_1.setScaleFactor)(this.options.unitsPerAu);
@@ -260,7 +260,7 @@ var Simulation = /** @class */ (function () {
                 this.scene.add(new THREE.AxesHelper(0.5));
             }
             if (this.options.debug.showStats) {
-                this.stats = new stats_module_1["default"]();
+                this.stats = new stats_module_js_1["default"]();
                 this.stats.showPanel(0);
                 this.simulationElt.appendChild(this.stats.dom);
             }
@@ -273,7 +273,7 @@ var Simulation = /** @class */ (function () {
      */
     Simulation.prototype.initRenderer = function () {
         // TODO(ian): Upgrade to webgl 2. See https://discourse.threejs.org/t/webgl2-breaking-custom-shader/16603/4
-        var renderer = new THREE.WebGL1Renderer({
+        var renderer = new THREE.WebGLRenderer({
             antialias: true
         });
         console.info('Max texture resolution:', renderer.capabilities.maxTextureSize);
@@ -455,6 +455,13 @@ var Simulation = /** @class */ (function () {
             }
             this.subscribedObjects[objId] = obj;
         }
+    };
+    /**
+     * Get an object previously added to the simulation.
+     * @return {Object} The SimulationObject.
+     */
+    Simulation.prototype.getObject = function (id) {
+        return this.subscribedObjects[id];
     };
     /**
      * Removes an object from the visualization.
@@ -847,7 +854,7 @@ var Simulation = /** @class */ (function () {
     };
     /**
      * Get the three.js renderer
-     * @return {THREE.WebGL1Renderer} The THREE.js renderer
+     * @return {THREE.WebGLRenderer} The THREE.js renderer
      */
     Simulation.prototype.getRenderer = function () {
         return this.renderer;

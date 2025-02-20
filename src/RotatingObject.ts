@@ -34,8 +34,6 @@ function getAxes() {
 export class RotatingObject extends SpaceObject {
   protected _obj: THREE.Object3D;
 
-  protected _materials: THREE.Material[];
-
   private _objectIsRotatable: boolean;
 
   // private _axisRotationAngleOffset: number;
@@ -46,7 +44,7 @@ export class RotatingObject extends SpaceObject {
    * FIXME(ian): This implementation is still WIP! Rotational parameters are not
    * used right now.
    * @param {boolean} options.rotation.enable Rotate the object
-   * @param {Number} options.rotation.speed Factor that determines speed of rotation
+   * @param {Number} options.rotation.speed Rotates the object even though no time elapsed, degs/rendering tick
    * @param {Number} options.rotation.lambdaDeg Ecliptic longitude lambda, in degrees
    * @param {Number} options.rotation.betaDeg Ecliptic longitude beta, in degrees
    * @param {Number} options.rotation.period Rotational period, in JD
@@ -77,9 +75,6 @@ export class RotatingObject extends SpaceObject {
     // this._axisRotationAngleOffset = 0;
     this._axisOfRotation = undefined;
 
-    // Keep track of materials that comprise this object.
-    this._materials = [];
-
     if (autoInit) {
       this.init();
     }
@@ -92,12 +87,18 @@ export class RotatingObject extends SpaceObject {
 
     if (this._options.debug) {
       if (this._options.debug.showAxes) {
-        getAxes().forEach((axis) => this._obj.add(axis));
+        getAxes().forEach((axis) => {
+          this._materials.push(axis.material as THREE.Material);
+          this._geometries.push(axis.geometry as THREE.BufferGeometry);
+          this._obj.add(axis);
+        });
       }
 
       if (this._options.debug.showGrid) {
         const gridHelper = new THREE.GridHelper(3, 3, 0xff0000, 0xffeeee);
         gridHelper.geometry.rotateX(Math.PI / 2);
+        this._materials.push(gridHelper.material);
+        this._geometries.push(gridHelper.geometry);
         this._obj.add(gridHelper);
       }
     }
@@ -176,6 +177,9 @@ export class RotatingObject extends SpaceObject {
     ) {
       if (this._axisOfRotation) {
         // this._obj.rotateOnAxis(this._axisOfRotation, 0.01);
+      }
+      if (this._options.rotation.speed) {
+        this._obj.rotateZ(Units.rad(this._options.rotation.speed))
       }
       else {
         // Rotate the object around the Z axis
